@@ -1,6 +1,5 @@
 import torch
 
-
 def main():
     print("Hello from gx-train!")
     print(f"PyTorch 버전: {torch.__version__}")
