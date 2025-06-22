@@ -1,6 +1,10 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,windows
 
+data/
+logs/
+outputs/
+
 # .env 파일 및 특정 환경 .env 파일 무시
 .env
 .env.*.local
