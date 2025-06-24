@@ -1,6 +1,6 @@
 defaults:
-  - data: cifar10
-  - model: resnet18
+  - data: custom
+  - model: regression_dnn
   - optimizer: adam
   - scheduler: step_lr
   - logger: wandb

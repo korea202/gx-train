@@ -1,0 +1,8 @@
+model_name: regression_dnn
+input_dim: 24
+hidden_dims: [100, 50, 25]
+output_dim: 1
+apply_batchnorm: true
+apply_activation: true
+apply_dropout: true
+dropout_ratio: 0.2

@@ -1,0 +1,7 @@
+model_name: classfication_dnn
+hidden_dims: [784, 512, 256, 128]
+apply_batchnorm: true
+apply_activation: true
+apply_dropout: true
+num_classes: 10
+dropout_ratio: 0.2

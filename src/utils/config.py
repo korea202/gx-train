@@ -6,3 +6,5 @@ CONFIGS_DIR = PROJECT_ROOT + "/configs"
 MODELS_DIR = PROJECT_ROOT + "/models"
 OUTPUTS_DIR = PROJECT_ROOT + "/outputs"
 LOGS_DIR = PROJECT_ROOT + "/logs"
+
+HOUSE_PRICING_DATA = PROJECT_ROOT + "/data/train.csv"

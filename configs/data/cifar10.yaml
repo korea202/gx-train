@@ -1,0 +1,3 @@
+data_dir: "./CIFAR10_DATASET"
+batch_size: 64
+valid_split: 0.2
