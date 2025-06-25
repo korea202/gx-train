@@ -9,23 +9,28 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from src.utils import config
 
 class HousePricingDataset(Dataset):
-    def __init__(self, df, scaler=None, label_encoders=None):
+    def __init__(self, df, scaler=None, label_scaler=None, label_encoders=None):
         self.df = df
         self.features = None
         self.labels = None
         self.scaler = scaler
+        self.label_scaler = label_scaler
         self.label_encoders = label_encoders
         self._preprocessing()
 
     def _preprocessing(self):
         target_nm = 'target'
         # 타겟 및 피처 정의
-        self.labels = self.df[target_nm].to_numpy()
+        labels = self.df[target_nm].to_numpy()
         features = self.df.drop(columns=[target_nm], axis=1).to_numpy()
 
-        #labels = StandardScaler().fit_transform(self.labels.reshape(-1, 1))
-        #self.labels = labels.flatten()
-        
+        # 라벨 스케일링
+        if self.label_scaler:
+            self.labels = self.label_scaler.transform(labels.reshape(-1, 1))
+        else:
+            self.label_scaler = StandardScaler()
+            self.labels = self.label_scaler.fit_transform(labels.reshape(-1, 1))
+
         # 피처 스케일링
         if self.scaler:
             self.features = self.scaler.transform(features)
@@ -131,7 +136,7 @@ def split_dataset(df):
     return train_df, val_df, test_df
 
 
-def get_datasets(scaler=None, label_encoders=None):
+def get_datasets(scaler=None, label_scaler=None, label_encoders=None):
     # 1. 데이터 읽기
     df = read_dataset()
 
@@ -142,9 +147,9 @@ def get_datasets(scaler=None, label_encoders=None):
     train_df, val_df, test_df = split_dataset(df)
 
     # PyTorch Dataset 객체 생성
-    train_dataset = HousePricingDataset(train_df, scaler, label_encoders)
-    val_dataset = HousePricingDataset(val_df, scaler=train_dataset.scaler, label_encoders=train_dataset.label_encoders)
-    test_dataset = HousePricingDataset(test_df, scaler=train_dataset.scaler, label_encoders=train_dataset.label_encoders)
+    train_dataset = HousePricingDataset(train_df, scaler, label_scaler, label_encoders)
+    val_dataset = HousePricingDataset(val_df, scaler=train_dataset.scaler, label_scaler=train_dataset.label_scaler, label_encoders=train_dataset.label_encoders)
+    test_dataset = HousePricingDataset(test_df, scaler=train_dataset.scaler, label_scaler=train_dataset.label_scaler, label_encoders=train_dataset.label_encoders)
     
     return train_dataset, val_dataset, test_dataset
 

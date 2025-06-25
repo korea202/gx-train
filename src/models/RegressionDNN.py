@@ -11,6 +11,7 @@ class RegressionDNN(LightningModule):
     def __init__(self, cfg):
         super().__init__()
         self.learning_rate = cfg.optimizer.lr
+        self.weight_decay = cfg.optimizer.weight_decay
         self.train_rmse  =  torchmetrics.MeanSquaredError(squared=False)
         self.val_rmse  = torchmetrics.MeanSquaredError(squared=False)
         self.test_rmse  = torchmetrics.MeanSquaredError(squared=False)
@@ -57,10 +58,7 @@ class RegressionDNN(LightningModule):
     def forward(self, x):
         # 디버깅용 - 나중에 제거
         #print(f"Input shape: {x.shape}")
-        # 2차원이 아닌 경우에만 flatten
-        if x.dim() > 2:
-            x = x.view(x.shape[0], -1)
-
+        
         for layer in self.layers:
             x = layer(x)
         
@@ -73,9 +71,9 @@ class RegressionDNN(LightningModule):
         # Shape 확인
         #print(f"Preds shape: {preds.shape}")
         #print(f"Y shape: {y.shape}")
-        print(f"x:{x[0]}")
-        print(f"preds:{preds}")
-        print(f"y:{y}")
+        #print(f"x:{x[0]}")
+        print(f"preds:{preds[0]}")
+        #print(f"y:{y}")
 
         loss = self.criterion(preds, y)
 
@@ -84,7 +82,7 @@ class RegressionDNN(LightningModule):
         
         # 로깅
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
-        self.log('train_rmse', self.train_rmse, on_step=True, on_epoch=True, prog_bar=True)
+        self.log('train_rmse', self.train_rmse, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
     
@@ -116,6 +114,6 @@ class RegressionDNN(LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         return [optimizer]
 

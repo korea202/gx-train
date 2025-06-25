@@ -1,5 +1,5 @@
 model_name: regression_dnn
-input_dim: 24
+input_dim: 8
 hidden_dims: [100, 50, 25]
 output_dim: 1
 apply_batchnorm: true
