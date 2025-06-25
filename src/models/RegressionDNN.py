@@ -72,7 +72,7 @@ class RegressionDNN(LightningModule):
         #print(f"Preds shape: {preds.shape}")
         #print(f"Y shape: {y.shape}")
         #print(f"x:{x[0]}")
-        print(f"preds:{preds[0]}")
+        #print(f"preds:{preds[0]}")
         #print(f"y:{y}")
 
         loss = self.criterion(preds, y)
