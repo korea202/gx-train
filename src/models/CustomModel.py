@@ -11,6 +11,7 @@ class CustomModel(LightningModule):
         model_name: str,
         num_classes: int = 17,
         learning_rate: float = 1e-3,
+        drop_rate:float = 0.0,
         pretrained: bool = True
     ):
         super().__init__()
@@ -20,7 +21,8 @@ class CustomModel(LightningModule):
         self.model = timm.create_model(
             model_name,
             pretrained=pretrained,
-            num_classes=num_classes
+            num_classes=num_classes,
+            drop_rate = drop_rate
         )
         
         # 메트릭 정의

@@ -73,15 +73,16 @@ class FullAugraphyPipelineQueue:
             # 모든 효과에서 랜덤 선택
             all_effects = self.ink_effects + self.paper_effects + self.post_effects
             num_effects = random.randint(1, min(self.max_effects, len(all_effects)))
-            selected_effects = random.sample(all_effects, num_effects) 
+            #selected_effects = random.sample(all_effects, num_effects)
+            selected_effects = random.sample(all_effects, max_effects) 
             selected_effects.append(
                 Geometric(
                     fliplr=0.5,
                     flipud=0.5,
-                    rotate_range=(1, 360),
-                    scale=(1.0, 1.0),
-                    translation=(0, 0),
-                    p=0.6
+                    rotate_range=(1, 355),
+                    scale=(0.8, 1.3),
+                    translation=(0.05, 0.05),
+                    p=0.8
                 ) )
             
             # 효과들을 단계별로 분류

@@ -79,6 +79,26 @@ def prepare_data(batch_size=32, num_workers=4):
     
     return train_loader, val_loader, test_loader
 
+def test(trainer, model, test_loader):
+
+    # 테스트
+    trainer.test(model, test_loader)
+
+    print("테스트 갯수=",len(model.test_predictions))
+    
+    if len(model.test_predictions) > 0:
+        # 모든 예측값과 실제값 합치기
+        all_preds = model.test_predictions
+        
+        pred_df = pd.DataFrame(test_loader.dataset.df, columns=['ID', 'target'])
+        pred_df['target'] = all_preds
+
+        sample_submission_df = pd.read_csv(config.CV_CLS_TEST_CSV)
+        assert (sample_submission_df['ID'] == pred_df['ID']).all()
+        pred_df.to_csv(config.OUTPUTS_DIR + "/pred.csv", index=False)
+
+    else:
+        print("테스트 결과를 가져올 수 없습니다.")
 
 def main():
 
@@ -86,11 +106,13 @@ def main():
     model_name = 'efficientnet_b4' # 'resnet50' 'efficientnet_b4', ...
 
     # training config
-    EPOCHS = 20
+    EPOCHS = 10
     BATCH_SIZE = 16
     num_workers = 0
     num_classes = 17
     learning_rate = 1e-3
+    drop_out = 0.4
+    do_test = True
     
     # 모델 초기화 전에 설정
     torch.set_float32_matmul_precision('medium')
@@ -103,7 +125,8 @@ def main():
     model = CustomModel(
         model_name= model_name,
         num_classes=num_classes,
-        learning_rate=learning_rate
+        learning_rate=learning_rate,
+        drop_rate = drop_out
     )
 
      # 콜백을 직접 생성
@@ -130,23 +153,8 @@ def main():
     #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_17/checkpoints/epoch=6-step=280.ckpt")
     
     # 테스트
-    trainer.test(model, test_loader)
-
-    print("테스트 갯수=",len(model.test_predictions))
-    
-    if len(model.test_predictions) > 0:
-        # 모든 예측값과 실제값 합치기
-        all_preds = model.test_predictions
-        
-        pred_df = pd.DataFrame(test_loader.dataset.df, columns=['ID', 'target'])
-        pred_df['target'] = all_preds
-
-        sample_submission_df = pd.read_csv(config.CV_CLS_TEST_CSV)
-        assert (sample_submission_df['ID'] == pred_df['ID']).all()
-        pred_df.to_csv(config.OUTPUTS_DIR + "/pred.csv", index=False)
-
-    else:
-        print("테스트 결과를 가져올 수 없습니다.")
+    if(do_test == True): 
+        test(trainer, model, test_loader)
 
   
 if __name__ == "__main__":
