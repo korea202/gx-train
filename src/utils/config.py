@@ -9,8 +9,10 @@ LOGS_DIR = PROJECT_ROOT + "/logs"
 
 HOUSE_PRICING_DATA = PROJECT_ROOT + "/data/train.csv"
 
-CV_CLS_TRAIN_CSV = DATA_DIR + "/cv_cls/train.csv"
-CV_CLS_TRAIN_DIR = DATA_DIR + "/cv_cls/train"
+CV_CLS_TRAIN_CSV = DATA_DIR + "/row/train.csv"
+CV_CLS_TRAIN_DIR = DATA_DIR + "/row/train"
 
-CV_CLS_TEST_CSV = DATA_DIR + "/cv_cls/sample_submission.csv"
-CV_CLS_TEST_DIR = DATA_DIR + "/cv_cls/test"
+CV_CLS_TEST_CSV = DATA_DIR + "/row/sample_submission.csv"
+CV_CLS_TEST_DIR = DATA_DIR + "/row/test"
+
+IMAGE_SIZE = 380

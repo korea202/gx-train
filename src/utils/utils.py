@@ -34,3 +34,19 @@ def random_seed(seed_num):
     cudnn.benchmark = False
     cudnn.deterministic = True
     random.seed(seed_num)    
+
+import subprocess
+
+def run_py(f_name, args) -> None: 
+
+    cmd = ['python', f_name] + args
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    print(f"명령어: {result.args}")
+    print(f"반환 코드: {result.returncode}")
+    print(f"표준 출력: {result.stdout}")
+    print(f"표준 에러: {result.stderr}")
+
+# 카카오톡에 작업 메시지 보내기
+def send_kakao_message(msg:str) -> None: 
+
+    run_py('/data/ephemeral/home/python_work/module/send_kakao_message.py', [msg])    

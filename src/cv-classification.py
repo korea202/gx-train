@@ -1,18 +1,13 @@
 import os
 import sys
-import time
-import random
-
-import timm
 import torch
-import albumentations as A
+
 import pandas as pd
 import numpy as np
 import torch.nn as nn
-from albumentations.pytorch import ToTensorV2
 from torch.optim import Adam
 from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, ConcatDataset, random_split
 from PIL import Image
 from tqdm import tqdm
 
@@ -26,7 +21,8 @@ sys.argv = ['']
 # 환경변수 읽기
 if (python_path := dotenv_values().get('PYTHONPATH')) and python_path not in sys.path: sys.path.append(python_path)
 
-from src.dataset import ImageDataset
+from src.dataset.CvImageDatasetFast import get_datasets
+#from src.dataset.CvImageDataset import get_datasets
 from src.models.CustomModel import CustomModel
 from src.utils import config
 
@@ -51,7 +47,7 @@ def random_seed(seed_num=42):
 def prepare_data(batch_size=32, num_workers=4):
     
    # 데이터셋 생성
-    train_dataset, val_dataset, test_dataset = ImageDataset.get_datasets()
+    train_dataset, val_dataset, test_dataset = get_datasets()
 
     # DataLoader 정의
     train_loader = DataLoader(
@@ -87,20 +83,23 @@ def prepare_data(batch_size=32, num_workers=4):
 def main():
 
     # model config
-    model_name = 'resnet34' # 'resnet50' 'efficientnet-b0', ...
+    model_name = 'efficientnet_b4' # 'resnet50' 'efficientnet_b4', ...
 
     # training config
-    EPOCHS = 1
-    BATCH_SIZE = 32
+    EPOCHS = 20
+    BATCH_SIZE = 16
     num_workers = 0
     num_classes = 17
     learning_rate = 1e-3
     
+    # 모델 초기화 전에 설정
+    torch.set_float32_matmul_precision('medium')
+    
     random_seed(42)
 
     # 데이터 로더 준비
-    train_loader, val_loader, test_loader = prepare_data(batch_size=BATCH_SIZE, num_workers=4)
-
+    train_loader, val_loader, test_loader = prepare_data(batch_size=BATCH_SIZE, num_workers=num_workers)
+    
     model = CustomModel(
         model_name= model_name,
         num_classes=num_classes,
@@ -126,11 +125,15 @@ def main():
     
     # 훈련
     trainer.fit(model, train_loader, val_loader)
+    #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_0/checkpoints/epoch=9-step=790.ckpt")
+    #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_1/checkpoints/epoch=11-step=948.ckpt")
+    #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_17/checkpoints/epoch=6-step=280.ckpt")
     
     # 테스트
     trainer.test(model, test_loader)
 
     print("테스트 갯수=",len(model.test_predictions))
+    
     if len(model.test_predictions) > 0:
         # 모든 예측값과 실제값 합치기
         all_preds = model.test_predictions
@@ -145,5 +148,6 @@ def main():
     else:
         print("테스트 결과를 가져올 수 없습니다.")
 
+  
 if __name__ == "__main__":
     main()
