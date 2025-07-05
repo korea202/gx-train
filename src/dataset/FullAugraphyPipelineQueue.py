@@ -37,7 +37,7 @@ class FullAugraphyPipelineQueue:
         self.post_effects = [
             # 물리적 변형
             Folding(),
-            BindingsAndFasteners(),
+            #BindingsAndFasteners(),
             
             # 인쇄/스캔 효과
             BadPhotoCopy(),

@@ -50,3 +50,18 @@ def run_py(f_name, args) -> None:
 def send_kakao_message(msg:str) -> None: 
 
     run_py('/data/ephemeral/home/python_work/module/send_kakao_message.py', [msg])    
+
+
+import datetime
+import os
+
+def generate_experiment_name(model_name, learning_rate, batch_size, additional_info=""):
+    """동적 실험 이름 생성"""
+    timestamp = datetime.datetime.now().strftime("%m%d_%H%M")
+    
+    base_name = f"{model_name}_lr{learning_rate}_bs{batch_size}"
+    
+    if additional_info:
+        base_name += f"_{additional_info}"
+    
+    return f"{base_name}_{timestamp}"    

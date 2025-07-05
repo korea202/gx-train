@@ -5,6 +5,8 @@ import torch
 import pandas as pd
 import numpy as np
 import torch.nn as nn
+import wandb
+
 from torch.optim import Adam
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, random_split
@@ -12,6 +14,7 @@ from PIL import Image
 from tqdm import tqdm
 
 import pytorch_lightning as pl
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 from dotenv import load_dotenv, dotenv_values
@@ -19,12 +22,14 @@ from dotenv import load_dotenv, dotenv_values
 # 하이드라와 주피터 노트북은 아규먼트 관련 충돌이 발생하므로 초기화 해줌
 sys.argv = ['']
 # 환경변수 읽기
+
+load_dotenv()
 if (python_path := dotenv_values().get('PYTHONPATH')) and python_path not in sys.path: sys.path.append(python_path)
 
 from src.dataset.CvImageDatasetFast import get_datasets
 #from src.dataset.CvImageDataset import get_datasets
 from src.models.CustomModel import CustomModel
-from src.utils import config
+from src.utils import config, utils
 
 # 시드 고정
 def random_seed(seed_num=42):
@@ -113,10 +118,18 @@ def main():
     learning_rate = 1e-3
     drop_out = 0.4
     do_test = True
-    
+
     # 모델 초기화 전에 설정
     torch.set_float32_matmul_precision('medium')
     
+    # WandB Logger 초기화
+    wandb_logger = WandbLogger(
+        project="cv-classification",                                                            # 프로젝트 이름
+        name=utils.generate_experiment_name(model_name, learning_rate, BATCH_SIZE),             # 실험 이름 (선택사항)
+        job_type="train",                                                                        # 작업 타입 (선택사항)
+        save_dir=config.OUTPUTS_DIR
+    )
+   
     random_seed(42)
 
     # 데이터 로더 준비
@@ -144,18 +157,17 @@ def main():
         )
     ]
 
-    trainer = Trainer(default_root_dir=config.OUTPUTS_DIR, max_epochs=EPOCHS, accelerator='auto', callbacks=callbacks)
+    trainer = Trainer(default_root_dir=config.OUTPUTS_DIR, max_epochs=EPOCHS, accelerator='auto', callbacks=callbacks, logger=wandb_logger)
     
     # 훈련
     trainer.fit(model, train_loader, val_loader)
     #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_0/checkpoints/epoch=9-step=790.ckpt")
-    #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_1/checkpoints/epoch=11-step=948.ckpt")
-    #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_17/checkpoints/epoch=6-step=280.ckpt")
     
     # 테스트
     if(do_test == True): 
         test(trainer, model, test_loader)
 
-  
+    # WandB 종료
+    wandb.finish()
 if __name__ == "__main__":
     main()

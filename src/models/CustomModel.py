@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from pytorch_lightning import LightningModule
 import timm
 from torchmetrics import Accuracy, F1Score
+import wandb
+import numpy as np
 
 class CustomModel(LightningModule):
     def __init__(
@@ -70,11 +72,22 @@ class CustomModel(LightningModule):
         preds = torch.argmax(logits, dim=1)
         self.val_accuracy(preds, y)
         self.val_f1(preds, y)
-        
+
+        # 오답 샘플 수집
+        if self.current_epoch == self.trainer.max_epochs - 1: 
+            misclassified = []
+            for i in range(len(preds)):
+                if preds[i] != y[i]:
+                    img = prepare_image_for_wandb(x[i]) 
+                    wandb_image = wandb.Image(img, caption=f"Pred: {preds[i]}, Label: {y[i]}")
+                    misclassified.append(wandb_image)    
+            # WandB Table에 기록
+            wandb.log({"misclassified_images": misclassified})
+
         # 로깅
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log('val_acc', self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
-        self.log('val_f1', self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
+        self.log('val_f1', self.val_f1, on_step=False, on_epoch=True, prog_bar=True)
         
         return loss
     
@@ -115,3 +128,27 @@ class CustomModel(LightningModule):
                 'monitor': 'val_loss'
             }
         }
+
+def prepare_image_for_wandb(img):
+    """WandB 업로드용 이미지 전처리"""
+    # GPU 텐서를 CPU로 이동
+    img = img.detach().cpu()
+    
+    # 정규화 역변환 (ImageNet 기준)
+    mean = torch.tensor([0.485, 0.456, 0.406])
+    std = torch.tensor([0.229, 0.224, 0.225])
+    img = img * std.view(3, 1, 1) + mean.view(3, 1, 1)
+    
+    # 값 범위 클램핑 (0~1)
+    img = torch.clamp(img, 0, 1)
+    
+    # CHW -> HWC 변환
+    img = img.permute(1, 2, 0)
+    
+    # NumPy 배열로 변환
+    img = img.numpy()
+    
+    # 0~255 범위로 변환 (선택사항)
+    img = (img * 255).astype(np.uint8)
+    
+    return img
