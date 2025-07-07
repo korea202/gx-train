@@ -16,7 +16,7 @@ from tqdm import tqdm
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
 from dotenv import load_dotenv, dotenv_values
 
 # 하이드라와 주피터 노트북은 아규먼트 관련 충돌이 발생하므로 초기화 해줌
@@ -26,9 +26,9 @@ sys.argv = ['']
 load_dotenv()
 if (python_path := dotenv_values().get('PYTHONPATH')) and python_path not in sys.path: sys.path.append(python_path)
 
-from src.dataset.CvImageDatasetFast import get_datasets
+from src.dataset.CvImageDatasetFastEx import get_datasets
 #from src.dataset.CvImageDataset import get_datasets
-from src.models.CustomModel import CustomModel
+from src.models.CustomModelEx import CustomModelEx
 from src.utils import config, utils
 
 # 시드 고정
@@ -49,10 +49,10 @@ def random_seed(seed_num=42):
     #torch.backends.cudnn.benchmark = False
 
 # 데이터 준비 함수
-def prepare_data(batch_size=32, num_workers=4):
+def prepare_data(model, batch_size=32, num_workers=4):
     
    # 데이터셋 생성
-    train_dataset, val_dataset, test_dataset = get_datasets()
+    train_dataset, val_dataset, test_dataset = get_datasets(model)
 
     # DataLoader 정의
     train_loader = DataLoader(
@@ -108,14 +108,14 @@ def test(trainer, model, test_loader):
 def main():
 
     # model config
-    model_name = 'efficientnet_b4' # 'resnet50' 'efficientnet_b4', ...
+    model_name = 'tf_efficientnet_b4' # 'resnet50' 'efficientnet_b4', ...
 
     # training config
-    EPOCHS = 10
+    EPOCHS = 100
     BATCH_SIZE = 16
     num_workers = 0
     num_classes = 17
-    learning_rate = 1e-3
+    learning_rate = 1e-4
     drop_out = 0.4
     do_test = True
 
@@ -132,17 +132,18 @@ def main():
    
     random_seed(42)
 
-    # 데이터 로더 준비
-    train_loader, val_loader, test_loader = prepare_data(batch_size=BATCH_SIZE, num_workers=num_workers)
-    
-    model = CustomModel(
+    model = CustomModelEx(
         model_name= model_name,
         num_classes=num_classes,
         learning_rate=learning_rate,
         drop_rate = drop_out
     )
 
-     # 콜백을 직접 생성
+    # 데이터 로더 준비
+    train_loader, val_loader, test_loader = prepare_data(model=model, batch_size=BATCH_SIZE, num_workers=num_workers)
+    
+
+    # 콜백을 직접 생성
     callbacks = [
         EarlyStopping(
             monitor='val_loss',
@@ -151,6 +152,12 @@ def main():
             min_delta=0.001,
             verbose=True
         ),
+        ModelCheckpoint(
+            save_top_k=1,
+            monitor='val_loss',
+            mode='min',
+            filename='best-{epoch:02d}-{val_loss:.3f}'
+        ), 
         LearningRateMonitor(
             logging_interval='epoch',
             log_momentum=False
@@ -161,7 +168,7 @@ def main():
     
     # 훈련
     trainer.fit(model, train_loader, val_loader)
-    #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/lightning_logs/version_0/checkpoints/epoch=9-step=790.ckpt")
+    #trainer.fit(model, train_loader, val_loader, ckpt_path=config.OUTPUTS_DIR + "/cv-classification/69cazm6k/checkpoints/best-epoch=37-val_loss=0.650.ckpt")
     
     # 테스트
     if(do_test == True): 

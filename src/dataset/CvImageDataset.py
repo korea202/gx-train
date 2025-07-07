@@ -59,7 +59,7 @@ clean_transforms = transforms.Compose([
 ])
 
 
-def get_datasets():
+def get_datasets(model=None):
     
     # 데이터셋 생성
     d1 = CvImageDataset(config.CV_CLS_TRAIN_CSV, config.CV_CLS_TRAIN_DIR, transform=dirty_transforms)

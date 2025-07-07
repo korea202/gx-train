@@ -61,7 +61,7 @@ clean_transforms = transforms.Compose([
 ])
 
 
-def get_datasets():
+def get_datasets(model=None):
     
     # 데이터셋 생성
     d1 = CvImageDatasetFast(train_source, transform=dirty_transforms)

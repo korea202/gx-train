@@ -15,4 +15,10 @@ CV_CLS_TRAIN_DIR = DATA_DIR + "/row/train"
 CV_CLS_TEST_CSV = DATA_DIR + "/row/sample_submission.csv"
 CV_CLS_TEST_DIR = DATA_DIR + "/row/test"
 
+CV_CLS_AUGMENT_CSV = DATA_DIR + "/row/augment.csv"
+CV_CLS_AUGMENT_DIR = DATA_DIR + "/row/augment"
+
+CV_CLS_MISS_DIR = DATA_DIR + "/row/miss"
+
+
 IMAGE_SIZE = 380
