@@ -1,4 +1,0 @@
-model:
-  model_name: simple_cnn
-  num_classes: 10
-  dropout_ratio: 0.2

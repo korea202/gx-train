@@ -18,7 +18,7 @@ class CustomModelEx(LightningModule):
         model_name: str,
         num_classes: int = 17,
         learning_rate: float = 1e-3,
-        drop_rate:float = 0.0,
+        dropout_rate:float = 0.0,
         pretrained: bool = True
     ):
         super().__init__()
@@ -33,7 +33,7 @@ class CustomModelEx(LightningModule):
 
         # 분류기 교체
         self.model.classifier = torch.nn.Sequential(
-            torch.nn.Dropout(drop_rate),
+            torch.nn.Dropout(dropout_rate),
             torch.nn.Linear(self.model.classifier.in_features, 17)
         )
 
@@ -118,7 +118,7 @@ class CustomModelEx(LightningModule):
             if preds[i] != y[i]:
                 img = prepare_image_for_wandb(x[i]) 
                 #wandb_image = wandb.Image(img, caption=f"Pred: {preds[i]}, Label: {y[i]}")
-                misclassified.append(img)    
+                misclassified.append({'img':img, 'pred':preds[i], 'y':y[i]})    
 
         save__misclassified_list(misclassified, self.current_epoch)
         
@@ -131,14 +131,13 @@ class CustomModelEx(LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, y = batch
-        logits = self(x)
-        preds = torch.argmax(logits, dim=1)
-        
+
+        preds = tta_predict(x)
+      
         # 테스트 결과 저장
-        
         result =  {'preds': preds, 'targets': y}
         self.test_step_outputs.append(result)
-        
+            
         return result
 
     def on_test_epoch_end(self):
@@ -167,6 +166,67 @@ class CustomModelEx(LightningModule):
                 'monitor': 'val_loss'
             }
         }
+    
+    def default_predict(self, x):
+        logits = self(x)
+        preds = torch.argmax(logits, dim=1)
+
+        return preds
+
+    def tta_predict(self, x):
+        """
+        Test Time Augmentation(TTA) 예측 함수.
+        입력 x에 대해 여러 증강을 적용하여 예측 결과를 앙상블합니다.
+        """
+        tta_transforms = self.get_tta_transforms()
+            
+        # 각 증강에 대한 예측 결과 저장
+        all_logits = []
+        
+        # 각 증강 적용하여 예측
+        for transform in tta_transforms:
+            # 증강 적용
+            augmented_x = transform(x)
+            
+            # 예측 수행
+            with torch.no_grad():
+                logits = self(augmented_x)
+                all_logits.append(logits)
+
+
+        """ # 모든 예측 결과를 스택으로 쌓기
+        stacked_logits = torch.stack(all_logits, dim=0)  # [num_augments, batch_size, num_classes]
+        
+        # 앙상블: 평균 계산
+        ensemble_logits = torch.mean(stacked_logits, dim=0)
+
+        # 최종 예측
+        preds = torch.argmax(ensemble_logits, dim=1) """
+
+        # 각 예측을 확률로 변환 후 평균
+        all_probs = [torch.softmax(logits, dim=1) for logits in all_logits]
+        ensemble_probs = torch.mean(torch.stack(all_probs, dim=0), dim=0)
+        preds = torch.argmax(ensemble_probs, dim=1)
+        
+        return preds
+
+    def get_tta_transforms(self):
+        """TTA를 위한 증강 변환들을 반환"""
+        transforms = [
+            # 원본 (증강 없음)
+            lambda x: x,
+            # 수평 반전
+            lambda x: torch.flip(x, dims=[3]),
+            # 수직 반전  
+            lambda x: torch.flip(x, dims=[2]),
+            # 90도 회전
+            lambda x: torch.rot90(x, k=1, dims=[2, 3]),
+            # 270도 회전
+            lambda x: torch.rot90(x, k=3, dims=[2, 3]),
+            # 수평+수직 반전
+            lambda x: torch.flip(torch.flip(x, dims=[3]), dims=[2]),
+        ]
+        return transforms 
 
 def prepare_image_for_wandb(img):
     """WandB 업로드용 이미지 전처리"""
@@ -192,7 +252,7 @@ def prepare_image_for_wandb(img):
     
     return img
 
-def save__misclassified_list(list,  current_epoch, prefix="misclassified", output_dir=config.CV_CLS_MISS_DIR):
+def save__misclassified_list(list,  current_epoch, prefix="mis", output_dir=config.CV_CLS_MISS_DIR):
     
         import os
         
@@ -201,12 +261,55 @@ def save__misclassified_list(list,  current_epoch, prefix="misclassified", outpu
         now = datetime.now()
         time_str = now.strftime("%Y%m%d_%H%M%S")  # 20250706_204900
 
-        for i, img in enumerate(list):        
+        for i, dic in enumerate(list):     
+
+            img, pred, y = dic.values()   
             # 파일명 생성
-            filename = f"{prefix}_{time_str}_{current_epoch}_{i}.png"
+            filename = f"{prefix}_{current_epoch}_{time_str}_{pred}_{y}.png"
             filepath = os.path.join(output_dir, filename)
             
             # 저장
             cv2.imwrite(filepath, img)
             print(f"저장 완료: {filepath}")
+
+
+
+
+def tta_predict(x):
+    """
+    Test Time Augmentation(TTA) 예측 함수.
+    입력 x에 대해 여러 증강을 적용하여 예측 결과를 앙상블합니다.
+    """
+    tta_transforms = transforms.get_tta_transforms()
         
+    # 각 증강에 대한 예측 결과 저장
+    all_logits = []
+    
+    # 각 증강 적용하여 예측
+    for transform in tta_transforms:
+        # 증강 적용
+        augmented_x = transform(x)
+        
+        # 예측 수행
+        with torch.no_grad():
+            logits = self(augmented_x)
+            all_logits.append(logits)
+
+
+    """ # 모든 예측 결과를 스택으로 쌓기
+    stacked_logits = torch.stack(all_logits, dim=0)  # [num_augments, batch_size, num_classes]
+    
+    # 앙상블: 평균 계산
+    ensemble_logits = torch.mean(stacked_logits, dim=0)
+
+    # 최종 예측
+    preds = torch.argmax(ensemble_logits, dim=1) """
+
+    # 각 예측을 확률로 변환 후 평균
+    all_probs = [torch.softmax(logits, dim=1) for logits in all_logits]
+    ensemble_probs = torch.mean(torch.stack(all_probs, dim=0), dim=0)
+    preds = torch.argmax(ensemble_probs, dim=1)
+    
+    return preds
+
+

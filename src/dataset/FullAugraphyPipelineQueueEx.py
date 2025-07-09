@@ -9,7 +9,8 @@ from src.dataset.AugmentImageManager import AugmentImageManager
 from src.utils import config
 
 class FullAugraphyPipelineQueueEx:
-    def __init__(self, num_pipelines=20):
+    
+    def __init__(self, num_pipelines=10):
         self.pipelines = []
         self.augument_image_manager = AugmentImageManager(csv_path=config.CV_CLS_AUGMENT_CSV)
 
@@ -108,8 +109,8 @@ class FullAugraphyPipelineQueueEx:
                 Geometric(
                     scale=(1, 1.1),
                     translation=probabilistic_translation(),  # 매번 다른 값
-                    fliplr=0.2,
-                    flipud=0.2,
+                    fliplr=0.5,
+                    flipud=0.5,
                     p=0.5
                 ),
             ]
@@ -172,7 +173,7 @@ class FullAugraphyPipelineQueueEx:
 
 
 
-def probabilistic_translation(probability=0.2, max_movement=100):
+def probabilistic_translation(probability=0.2, max_movement=30):
     
     if random.random() < probability:
         # 20% 확률로 랜덤한 이동 적용
@@ -183,19 +184,67 @@ def probabilistic_translation(probability=0.2, max_movement=100):
         # 80% 확률로 이동 없음
         return (0, 0)
 
-def rotate_first_then_augraphy(image):
+""" def rotate_first_then_augraphy(image):
      
     # 1. 원본 크기 유지 회전
     height, width = image.shape[:2]
     center = (width // 2, height // 2)
-    
-    M = cv2.getRotationMatrix2D(center, random.randint(0, 300), 1.0)
-    rotated = cv2.warpAffine(
-        image, M, (width, height),
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=(255, 255, 255)
-    )
+    angle = random.randint(0, 300)
+        
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    # 90도 또는 270도 근처 각도인지 확인 (±15도 허용)
+    if (75 <= angle <= 105) or (255 <= angle <= 285):
+        # 가로 세로 바꾸기 위해 출력 크기 변경
+        rotated = cv2.warpAffine(
+            image, M, (height, width),  # 가로↔세로 바꿈
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(255, 255, 255)
+        )
+    else:    
+        rotated = cv2.warpAffine(
+            image, M, (width, height),
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(255, 255, 255)
+        )
     
     return rotated   
+ """
 
+def rotate_first_then_augraphy(image):
+    height, width = image.shape[:2]
+    angle = random.choice([0, 90, 180, 270, random.randint(1, 359)])  # 일부는 정각 회전도 포함
+
+    center = (width // 2, height // 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    if angle % 180 == 0:
+        # 0도 또는 180도: 크기 그대로
+        rotated = cv2.warpAffine(
+            image, M, (width, height),
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(255, 255, 255)
+        )
+    elif angle % 90 == 0:
+        # 90도 또는 270도: 폭/높이 뒤바꿈
+        rotated = cv2.warpAffine(
+            image, M, (height, width),
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(255, 255, 255)
+        )
+    else:
+        # 비정각: 바운딩 박스 계산 필요
+        abs_cos = abs(M[0, 0])
+        abs_sin = abs(M[0, 1])
+        bound_w = int(height * abs_sin + width * abs_cos)
+        bound_h = int(height * abs_cos + width * abs_sin)
+        M[0, 2] += bound_w / 2 - center[0]
+        M[1, 2] += bound_h / 2 - center[1]
+
+        rotated = cv2.warpAffine(
+            image, M, (bound_w, bound_h),
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(255, 255, 255)
+        )
+    return rotated
      

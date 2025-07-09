@@ -1,6 +1,7 @@
 import os
 
-from torch.utils.data import Dataset, ConcatDataset, random_split
+from torch.utils.data import Dataset, ConcatDataset, Subset, random_split
+from sklearn.model_selection import train_test_split
 from PIL import Image
 from torchvision import transforms
 import pandas as pd
@@ -10,6 +11,8 @@ import timm
 
 from src.dataset.MemoryImageSourceEx import MemoryImageSourceEx
 from src.dataset.FullAugraphyPipelineQueueEx import FullAugraphyPipelineQueueEx
+from src.dataset.FullAugraphyPipelineQueue import FullAugraphyPipelineQueue
+from src.dataset.CustomRandomHorizontalFlip import CustomRandomHorizontalFlip
 from src.utils import config 
 
 class CvImageDatasetFastEx(Dataset):
@@ -32,9 +35,8 @@ class CvImageDatasetFastEx(Dataset):
         return img, target
 
 
-def get_datasets(model):
+def get_datasets(default_cfg):
 
-    default_cfg = model.model.default_cfg
     default_transform = timm.data.create_transform(
         input_size=default_cfg['input_size'],
         interpolation=default_cfg['interpolation'],
@@ -42,9 +44,6 @@ def get_datasets(model):
         std=default_cfg['std'],
         crop_pct=default_cfg['crop_pct'],
         is_training=False)
-
-    # 파이프라인
-    augmentation_pipeline = FullAugraphyPipelineQueueEx()
 
     # 커스텀 변환 클래스 정의
     class To_BGR(object):
@@ -66,8 +65,9 @@ def get_datasets(model):
 
     # 수정된 변환 파이프라인
     dirty_transforms = transforms.Compose([
+        CustomRandomHorizontalFlip(),
         To_BGR(),
-        augmentation_pipeline,  # Augraphy 적용
+        FullAugraphyPipelineQueueEx(),  # Augraphy 적용
         default_transform
     ])
 
@@ -79,11 +79,10 @@ def get_datasets(model):
 
     train_source = MemoryImageSourceEx(config.CV_CLS_TRAIN_CSV, config.CV_CLS_TRAIN_DIR)
     test_source = MemoryImageSourceEx(config.CV_CLS_TEST_CSV,config.CV_CLS_TEST_DIR)
-
     
     # 데이터셋 생성
     d1 = CvImageDatasetFastEx(train_source, transform=dirty_transforms)
-    d2 = CvImageDatasetFastEx(train_source, transform=default_transform)
+    d2 = CvImageDatasetFastEx(train_source, transform=dirty_transforms)
 
     train_dataset = ConcatDataset([d1, d2])
 
@@ -91,12 +90,32 @@ def get_datasets(model):
     train_size = int(0.8 * len(train_dataset))
     val_size = len(train_dataset) - train_size
 
-    train_dataset, val_dataset = random_split(
+    """ train_dataset, val_dataset = random_split(
         train_dataset, 
         [train_size, val_size]
         #generator=torch.Generator().manual_seed(42)  # 재현 가능성을 위한 시드
-    )
+    ) """
 
+    train_dataset, val_dataset = stratified_split(dataset=train_dataset, test_size=0.2, random_state=42)
     test_dataset = CvImageDatasetFastEx(test_source, transform=default_transform)
 
     return train_dataset, val_dataset, test_dataset   
+
+
+def stratified_split(dataset, test_size=0.2, random_state=42):
+
+    indices = list(range(len(dataset)))
+    labels = [label for _, label in dataset]
+
+    train_idx, val_idx = train_test_split(
+        indices,
+        stratify=labels,
+        test_size=test_size,
+        random_state=random_state
+    )
+
+    train_subset = Subset(dataset, train_idx)
+    val_subset = Subset(dataset, val_idx)
+    
+    return train_subset, val_subset
+

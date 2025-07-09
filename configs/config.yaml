@@ -1,14 +1,67 @@
-defaults:
-  - data: custom
-  - model: regression_dnn
-  - optimizer: adam
-  - scheduler: step_lr
-  - logger: wandb
-  - callback:
-    - early_stopping
-    - lr_monitor
-  - trainer: trainer
+# config.yaml - 모든 설정을 하나의 파일에 통합
+defaults: []  # 개별 컴포넌트 파일 참조 제거
+
+# 데이터 설정
+data:
+  batch_size: 16
+  num_workers: 0
+
+# 모델 설정
+model:
+  _target_: src.models.CustomModelEx
+  model_name: tf_efficientnet_b4
+  num_classes: 17
+  dropout_rate: 0.4
+  pretrained: True
+#  hidden_size: 256
+#  input_size: 512
+
+# 옵티마이저 설정
+optimizer:
+  _target_: torch.optim.AdamW
+  learning_rate: 1e-4
+  weight_decay: 0.05
+
+# 콜백 설정
+callbacks:
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val_loss"
+    patience: 5
+    mode: "min"
+    min_delta: 0.001
+    verbose: True
+  
+  lr_monitor:
+    _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    logging_interval: "epoch"
+    log_momentum: False
+
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    save_top_k: 1
+    monitor: "val_loss"
+    mode: "min"
+    filename: best-{epoch:02d}-{val_loss:.3f}
+
+# 트레이너 설정
+trainer:
+  _target_: pytorch_lightning.Trainer
+  max_epochs: 1
+  accelerator: "auto"
+  num_sanity_val_steps: 0
+
+# Hydra 설정
 hydra:
   run:
     dir: ../logs/${now:%Y-%m-%d}/${now:%H-%M-%S}
-  
+
+custom:
+  seed_num: 42     
+  do_test: False
+  do_checkpoint: False
+  #ckpt_path: "/data/ephemeral/home/python_work/git/gx-train/outputs/document-image-classification/dw6zsnge/checkpoints/best-epoch=55-val_loss=0.598.ckpt"
+  #ckpt_path: "/data/ephemeral/home/python_work/git/gx-train/outputs/document-image-classification/y4k5pfxw/checkpoints/best-epoch=59-val_loss=0.603.ckpt"
+  #ckpt_path: "/data/ephemeral/home/python_work/git/gx-train/outputs/document-image-classification/chr1b57o/checkpoints/best-epoch=62-val_loss=0.614.ckpt"
+  ckpt_path: "/data/ephemeral/home/python_work/git/gx-train/outputs/document-image-classification/nd8jd2sb/checkpoints/best-epoch=65-val_loss=0.612.ckpt"
+

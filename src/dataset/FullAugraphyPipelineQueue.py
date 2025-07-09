@@ -7,7 +7,7 @@ from PIL import Image
 from src.utils import config
 
 class FullAugraphyPipelineQueue:
-    def __init__(self, max_effects=5, num_pipelines=10):
+    def __init__(self, max_effects=2, num_pipelines=10):
         self.pipelines = []
         self.max_effects = max_effects
         
@@ -126,6 +126,6 @@ class FullAugraphyPipelineQueue:
         pil_result = Image.fromarray(augmented.astype(np.uint8))
         
         # 최종 크기 조정
-        pil_result = pil_result.resize((config.IMAGE_SIZE, config.IMAGE_SIZE), Image.LANCZOS)
+        #pil_result = pil_result.resize((config.IMAGE_SIZE, config.IMAGE_SIZE), Image.LANCZOS)
         
         return pil_result
