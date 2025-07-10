@@ -111,13 +111,17 @@ def test(trainer, model, test_loader):
 @hydra.main(config_path=config.CONFIGS_DIR, config_name="config", version_base=None)
 def main(cfg):
 
+    #print(cfg)
+    # cfg 에서 최상위 model 키값을 뺀다.
+    cfg = cfg.model
+
     # 모델 초기화 전에 설정
     torch.set_float32_matmul_precision('medium')
     
     # WandB Logger 초기화
     wandb_logger = WandbLogger(
         project="document-image-classification",                                                                            # 프로젝트 이름
-        name=utils.generate_experiment_name(cfg.model.model_name, cfg.optimizer.learning_rate, cfg.data.batch_size),        # 실험 이름 (선택사항)
+        name=utils.generate_experiment_name(cfg.model.model_name, cfg.optimizer.lr, cfg.data.batch_size),                   # 실험 이름 (선택사항)
         job_type="train",                                                                                                   # 작업 타입 (선택사항)
         save_dir=config.OUTPUTS_DIR,
         log_model=True
@@ -129,10 +133,11 @@ def main(cfg):
     model = CustomModelEx(
         model_name= cfg.model.model_name,
         num_classes= cfg.model.num_classes,
-        learning_rate= cfg.optimizer.learning_rate,
+        learning_rate= cfg.optimizer.lr,
         dropout_rate= cfg.model.dropout_rate,
-        pretrained= cfg.model.pretrained )
-
+        weight_decay =cfg.optimizer.weight_decay,
+        pretrained= cfg.model.pretrained,
+        cfg = cfg        )
     # 데이터 로더 준비
     train_loader, val_loader, test_loader = prepare_data(default_cfg=model.model.default_cfg, batch_size=cfg.data.batch_size, num_workers=cfg.data.num_workers)
     

@@ -1,0 +1,69 @@
+# config.yaml - Swin Transformer Small 최적화 설정
+defaults: []
+  
+# 데이터 설정
+data:
+  batch_size: 16  # Swin-S는 더 큰 모델이므로 배치 크기 약간 감소
+  num_workers: 0
+
+# 모델 설정 - Swin-Small로 변경
+model:
+  _target_: src.models.CustomModelEx
+  model_name: swin_small_patch4_window7_224  # Small 모델로 변경
+  num_classes: 17
+  dropout_rate: 0.1  # Small도 동일한 드롭아웃 사용
+  pretrained: True
+
+# 옵티마이저 설정 - Swin-Small에 최적화
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 8e-5  # 더 큰 모델이므로 학습률 약간 감소
+  weight_decay: 0.05
+
+# 스케줄러 설정
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 100
+  eta_min: 1e-6
+
+# 콜백 설정
+callbacks:
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val_loss"
+    patience: 12  # 더 큰 모델이므로 patience 증가
+    mode: "min"
+    min_delta: 0.001
+    verbose: True
+  
+  lr_monitor:
+    _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    logging_interval: "epoch"
+    log_momentum: False
+
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    save_top_k: 1
+    monitor: "val_loss"
+    mode: "min"
+    filename: best-{epoch:02d}-{val_loss:.3f}
+
+# 트레이너 설정
+trainer:
+  _target_: pytorch_lightning.Trainer
+  max_epochs: 60
+  accelerator: "auto"
+  num_sanity_val_steps: 0
+  precision: 16
+  gradient_clip_val: 1.0
+
+# Hydra 설정
+hydra:
+  run:
+    dir: ../logs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+custom:
+  seed_num: 42     
+  do_test: True
+  do_checkpoint: True
+  ckpt_path: "/data/ephemeral/home/python_work/git/gx-train/outputs/document-image-classification/9e6hsxfo/checkpoints/best-epoch=57-val_loss=0.580.ckpt"

@@ -1,0 +1,70 @@
+# tf_efficientnetv2_m.yaml
+
+# 데이터 설정
+data:
+  batch_size: 16  # V2는 메모리 효율성이 좋아 더 큰 배치 사용 가능
+  num_workers: 0
+
+# 모델 설정 - EfficientNet V2로 변경
+model:
+  _target_: src.models.CustomModelEx
+  model_name: tf_efficientnetv2_m  # V2 Medium 모델로 변경
+  num_classes: 17
+  dropout_rate: 0.3  # V2는 더 적은 드롭아웃으로도 효과적
+  pretrained: True
+#  hidden_size: 256
+#  input_size: 512
+
+# 옵티마이저 설정 - V2에 최적화
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 3e-4  # V2는 더 높은 학습률 사용 가능
+  weight_decay: 0.01   # 약간 낮은 weight decay
+
+# 스케줄러 설정 추가 - V2에 권장되는 코사인 스케줄러
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 40  # max_epochs와 맞춤
+  eta_min: 1e-6
+
+# 콜백 설정
+callbacks:
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val_loss"
+    patience: 7  # V2는 빠른 수렴으로 더 긴 patience 가능
+    mode: "min"
+    min_delta: 0.001
+    verbose: True
+  
+  lr_monitor:
+    _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    logging_interval: "epoch"
+    log_momentum: False
+
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    save_top_k: 1
+    monitor: "val_loss"
+    mode: "min"
+    filename: best-{epoch:02d}-{val_loss:.3f}
+
+# 트레이너 설정 - V2 최적화
+trainer:
+  _target_: pytorch_lightning.Trainer
+  max_epochs: 40  # V2는 더 적은 에포크로 수렴
+  accelerator: "auto"
+  num_sanity_val_steps: 0
+  precision: 16  # Mixed precision으로 훈련 속도 향상
+  gradient_clip_val: 1.0  # 안정적인 훈련을 위한 gradient clipping
+
+# Hydra 설정
+hydra:
+  run:
+    dir: ../logs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+custom:
+  seed_num: 42     
+  do_test: True
+  do_checkpoint: True
+  ckpt_path: "/data/ephemeral/home/python_work/git/gx-train/outputs/document-image-classification/q7f1arpk/checkpoints/best-epoch=38-val_loss=0.608.ckpt"

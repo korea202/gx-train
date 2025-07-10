@@ -16,6 +16,8 @@ class MemoryImageSourceEx:
         else:
             filtered_df = df[df['target'].isin(target_cls)]
 
+            filtered_df = pd.concat([filtered_df, filtered_df], ignore_index=True)
+
         self.df = filtered_df 
         self.image_dict = {}
 
@@ -23,6 +25,7 @@ class MemoryImageSourceEx:
             if len(target_cls) == 0 or row['target'] in target_cls:
                 # 파일명 추출
                 self.image_dict[row['ID']] = Image.open(os.path.join(path, row['ID'])).convert('RGB')
+
         
     def __getitem__(self, filename):
         # 파일명으로 이미지 반환

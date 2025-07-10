@@ -8,34 +8,40 @@ from datetime import datetime
 import wandb
 import numpy as np
 import cv2
+import hydra
 
+from omegaconf import DictConfig
 from src.utils import config
         
 
 class CustomModelEx(LightningModule):
     def __init__(
         self, 
+        cfg: DictConfig,
         model_name: str,
         num_classes: int = 17,
         learning_rate: float = 1e-3,
         dropout_rate:float = 0.0,
-        pretrained: bool = True
-    ):
+        weight_decay:float = 0.01,
+        pretrained: bool = True ):
+
         super().__init__()
-        self.save_hyperparameters()
+        self.cfg = cfg
+        self.save_hyperparameters(ignore=['cfg'])
         
         # timm 모델 생성
         self.model = timm.create_model(
-            model_name,
+            model_name=model_name,
             pretrained=pretrained,
-            num_classes=num_classes
+            num_classes=num_classes,  # timm이 자동으로 분류기 교체
+            drop_rate=dropout_rate    # 드롭아웃도 자동 적용
         )
 
-        # 분류기 교체
+        """ # 분류기 교체
         self.model.classifier = torch.nn.Sequential(
             torch.nn.Dropout(dropout_rate),
             torch.nn.Linear(self.model.classifier.in_features, 17)
-        )
+        ) """
 
         # 전체 모델의 학습 가능 여부 설정
         """ for name, param in self.model.named_parameters():
@@ -132,7 +138,7 @@ class CustomModelEx(LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
 
-        preds = tta_predict(x)
+        preds = self.tta_predict(x)
       
         # 테스트 결과 저장
         result =  {'preds': preds, 'targets': y}
@@ -151,21 +157,34 @@ class CustomModelEx(LightningModule):
         self.test_step_outputs.clear()
 
     def configure_optimizers(self):
-        #optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate, weight_decay=0.05)
-               
-        # 스케줄러 추가 (선택사항)
+        optimizer = hydra.utils.instantiate(self.cfg.optimizer, params=self.parameters() )       
+        """  # 스케줄러 추가 (선택사항)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode='min', factor=0.5, patience=5
-        )
+        ) """
+
+        # 스케줄러 생성
+        scheduler = hydra.utils.instantiate(self.cfg.scheduler, optimizer=optimizer)
         
-        return {
+        """ return {
             'optimizer': optimizer,
             'lr_scheduler': {
                 'scheduler': scheduler,
                 'monitor': 'val_loss'
             }
+        } """
+        return {
+            'optimizer': optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "epoch",     # 에포크 단위 업데이트
+                "frequency": 1,          # 매 에포크마다
+                "monitor": None,         # 자동 스케줄링이므로 불필요
+                "strict": False,         # 모니터링 없으므로 False
+                "name": "cosine_annealing_lr"
+            }
         }
+
     
     def default_predict(self, x):
         logits = self(x)
@@ -271,45 +290,4 @@ def save__misclassified_list(list,  current_epoch, prefix="mis", output_dir=conf
             # 저장
             cv2.imwrite(filepath, img)
             print(f"저장 완료: {filepath}")
-
-
-
-
-def tta_predict(x):
-    """
-    Test Time Augmentation(TTA) 예측 함수.
-    입력 x에 대해 여러 증강을 적용하여 예측 결과를 앙상블합니다.
-    """
-    tta_transforms = transforms.get_tta_transforms()
-        
-    # 각 증강에 대한 예측 결과 저장
-    all_logits = []
-    
-    # 각 증강 적용하여 예측
-    for transform in tta_transforms:
-        # 증강 적용
-        augmented_x = transform(x)
-        
-        # 예측 수행
-        with torch.no_grad():
-            logits = self(augmented_x)
-            all_logits.append(logits)
-
-
-    """ # 모든 예측 결과를 스택으로 쌓기
-    stacked_logits = torch.stack(all_logits, dim=0)  # [num_augments, batch_size, num_classes]
-    
-    # 앙상블: 평균 계산
-    ensemble_logits = torch.mean(stacked_logits, dim=0)
-
-    # 최종 예측
-    preds = torch.argmax(ensemble_logits, dim=1) """
-
-    # 각 예측을 확률로 변환 후 평균
-    all_probs = [torch.softmax(logits, dim=1) for logits in all_logits]
-    ensemble_probs = torch.mean(torch.stack(all_probs, dim=0), dim=0)
-    preds = torch.argmax(ensemble_probs, dim=1)
-    
-    return preds
-
 

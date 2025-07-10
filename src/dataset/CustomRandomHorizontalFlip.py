@@ -8,7 +8,7 @@ class CustomRandomHorizontalFlip:
     RandomHorizontalFlip(p=0.3) 전용 커스텀 클래스
     """
     
-    def __init__(self, p=0.2):
+    def __init__(self, p=0.3):
         """
         Args:
             p (float): 좌우 뒤집기를 적용할 확률 (기본값: 0.4)
