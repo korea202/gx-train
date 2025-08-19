@@ -1,3 +1,14 @@
-# config.yaml 
 defaults:
-  - model: tf_efficientnetv2_m  # 기본 모델 지정
+  - model: kobart-summarization
+  - _self_
+  
+# Hydra 설정
+hydra:
+  run:
+    dir: ../logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}  
+
+
+# config.yaml 
+#defaults:
+#  - model: tf_efficientnetv2_m  # 기본 모델 지정
+
